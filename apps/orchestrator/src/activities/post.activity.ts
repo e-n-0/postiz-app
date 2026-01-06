@@ -201,6 +201,21 @@ export class PostActivity {
   }
 
   @ActivityMethod()
+  async appendRefreshRetweetPlug(
+    orgId: string,
+    integrationId: string,
+    tweetId: string
+  ) {
+    return this._integrationService.appendValueToPlugData(
+      orgId,
+      integrationId,
+      'refreshRetweet',
+      'tweetIds',
+      tweetId
+    );
+  }
+
+  @ActivityMethod()
   async changeState(id: string, state: State, err?: any, body?: any) {
     return this._postService.changeState(id, state, err, body);
   }

@@ -218,6 +218,62 @@ export class XProvider extends SocialAbstract implements SocialProvider {
     return false;
   }
 
+  @Plug({
+    identifier: 'x-refreshRetweet',
+    title: 'Refresh retweet',
+    description:
+      'Re-retweet selected posts at 09:00, 16:00, 19:00, 21:00 and 23:00 (up to 3 posts per slot).',
+    runEveryMilliseconds: 0, // handled by a dedicated background workflow
+    totalRuns: 0, // prevents the standard per-post plug runner from scheduling it
+    fields: [
+      {
+        name: 'tweetIds',
+        type: 'richtext',
+        placeholder: '1234567890\n1234567891',
+        description: 'Tweet IDs to refresh (one per line)',
+        validation: /^(?:\s*\d+\s*(?:\r?\n|$))+$/m,
+      },
+    ],
+  })
+  async refreshRetweet(integration: Integration, tweetIds: string[]) {
+    const client = await this.getClient(integration.token);
+    const uniqueIds = Array.from(
+      new Set((tweetIds || []).map((id) => id.trim()).filter((id) => !!id))
+    ).slice(0, 3);
+
+    for (let i = 0; i < uniqueIds.length; i++) {
+      const tweetId = uniqueIds[i];
+      try {
+        await this.runInConcurrent(() =>
+          client.v2.unretweet(integration.internalId, tweetId)
+        );
+      } catch (err) {
+        // ignore failures when unretweeting (e.g., if not previously retweeted)
+      }
+
+      // Small gap between undo and redo
+      await timer(5000);
+
+      try {
+        await this.runInConcurrent(() =>
+          client.v2.retweet(integration.internalId, tweetId)
+        );
+      } catch (err) {
+        // ignore individual failures to keep the batch going
+      }
+
+      // Free plan: 1 write / 15 min per endpoint. Wait before moving to the next tweet.
+      if (i < uniqueIds.length - 1) {
+        await timer(15 * 60 * 1000);
+      }
+
+      // 5 seconds between tweets
+      await timer(5000);
+    }
+
+    return true;
+  }
+
   async refreshToken(): Promise<AuthTokenDetails> {
     return {
       id: '',

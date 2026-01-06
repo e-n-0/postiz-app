@@ -585,6 +585,93 @@ export class IntegrationRepository {
     });
   }
 
+  getActivePlugsByFunction(
+    plugFunction: string,
+    provider?: string,
+    orgId?: string
+  ) {
+    return this._plugs.model.plugs.findMany({
+      where: {
+        ...(orgId ? { organizationId: orgId } : {}),
+        plugFunction,
+        activated: true,
+        integration: {
+          ...(provider ? { providerIdentifier: provider } : {}),
+          disabled: false,
+          deletedAt: null,
+        },
+      },
+      include: {
+        integration: true,
+      },
+    });
+  }
+
+  async appendValueToPlugData(
+    orgId: string,
+    integrationId: string,
+    plugFunction: string,
+    fieldName: string,
+    value: string
+  ) {
+    const plug = await this._plugs.model.plugs.findFirst({
+      where: {
+        organizationId: orgId,
+        integrationId,
+        plugFunction,
+        activated: true,
+      },
+    });
+
+    if (!plug) {
+      return;
+    }
+
+    const data = JSON.parse(plug.data || '[]') as Array<{
+      name: string;
+      value: string;
+    }>;
+
+    const normaliseIds = (raw: string) =>
+      Array.from(
+        new Set(
+          (raw || '')
+            .split(/\r?\n/)
+            .map((p) => p.trim())
+            .filter((p) => !!p)
+            .map((p) => {
+              const match = p.match(/(\d{5,})/);
+              return match?.[1] || '';
+            })
+            .filter((p) => !!p)
+        )
+      );
+
+    const currentValue = data.find((p) => p.name === fieldName)?.value || '';
+    const updated = normaliseIds(currentValue);
+    const newId = value.match(/(\d{5,})/)?.[1];
+    if (!newId) {
+      return;
+    }
+    updated.unshift(newId);
+
+    const finalValue = Array.from(new Set(updated)).join('\n');
+
+    const newData = data.map((p) =>
+      p.name === fieldName ? { ...p, value: finalValue } : p
+    );
+    if (!data.find((p) => p.name === fieldName)) {
+      newData.push({ name: fieldName, value: finalValue });
+    }
+
+    await this._plugs.model.plugs.update({
+      where: { id: plug.id },
+      data: {
+        data: JSON.stringify(newData),
+      },
+    });
+  }
+
   changePlugActivation(orgId: string, plugId: string, status: boolean) {
     return this._plugs.model.plugs.update({
       where: {

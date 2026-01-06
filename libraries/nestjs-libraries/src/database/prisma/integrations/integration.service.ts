@@ -532,6 +532,34 @@ export class IntegrationService {
     return this._integrationRepository.getPlugs(orgId, integrationId);
   }
 
+  getActivePlugsByFunction(
+    plugFunction: string,
+    provider?: string,
+    orgId?: string
+  ) {
+    return this._integrationRepository.getActivePlugsByFunction(
+      plugFunction,
+      provider,
+      orgId
+    );
+  }
+
+  appendValueToPlugData(
+    orgId: string,
+    integrationId: string,
+    plugFunction: string,
+    fieldName: string,
+    value: string
+  ) {
+    return this._integrationRepository.appendValueToPlugData(
+      orgId,
+      integrationId,
+      plugFunction,
+      fieldName,
+      value
+    );
+  }
+
   async loadExisingData(
     methodName: string,
     integrationId: string,

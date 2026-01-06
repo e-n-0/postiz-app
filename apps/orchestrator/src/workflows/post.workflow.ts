@@ -66,6 +66,7 @@ export async function postWorkflow({
     globalPlugs,
     processInternalPlug,
     processPlug,
+    appendRefreshRetweetPlug,
   } = proxyTaskQueue(taskQueue);
 
   let poked = false;
@@ -227,6 +228,17 @@ export async function postWorkflow({
     post.organizationId,
     post.integration.id
   );
+
+  if (
+    post.integration.providerIdentifier === 'x' &&
+    postsResults[0]?.postId
+  ) {
+    await appendRefreshRetweetPlug(
+      post.organizationId,
+      post.integration.id,
+      postsResults[0].postId
+    );
+  }
 
   // load internal plugs like repost by other users
   const internalPlugsList = await internalPlugs(
