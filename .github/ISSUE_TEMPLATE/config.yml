@@ -10,5 +10,5 @@ contact_links:
 
   # You can add more links if needed
   - name: Security Issue
-    url: https://github.com/gitroomhq/postiz-app/security/advisories/new
+    url: https://github.com/e-n-0/postiz-app/security/advisories/new
     about: Please submit security Issues our GitHub Security Advisories.

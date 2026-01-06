@@ -35,7 +35,7 @@ const useFaqList = () => {
           isGeneral ? 'Postiz' : 'Gitroom'
         } is proudly open-source! We believe in an ethical and transparent culture, meaning that ${
           isGeneral ? 'Postiz' : 'Gitroom'
-        } will live forever. You can check out the entire code or use it for personal projects. To view the open-source repository, <a href="https://github.com/gitroomhq/postiz-app" target="_blank" style="text-decoration: underline;">click here</a>.`
+        } will live forever. You can check out the entire code or use it for personal projects. To view the open-source repository, <a href="https://github.com/e-n-0/postiz-app" target="_blank" style="text-decoration: underline;">click here</a>.`
       ),
     },
     {
