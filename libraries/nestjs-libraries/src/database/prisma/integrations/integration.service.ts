@@ -517,6 +517,18 @@ export class IntegrationService {
     };
   }
 
+  async pokeRefreshRetweetWorkflow(orgId: string) {
+    try {
+      const handle =
+        await this._temporalService.client.getWorkflowHandle(
+          'refresh-retweet-workflow'
+        );
+      await handle.signal('poke');
+    } catch (err) {
+      // swallow errors to avoid failing the plug save flow
+    }
+  }
+
   async changePlugActivation(orgId: string, plugId: string, status: boolean) {
     const { id, integrationId, plugFunction } =
       await this._integrationRepository.changePlugActivation(

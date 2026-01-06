@@ -1,40 +1,57 @@
-import { proxyActivities, sleep } from '@temporalio/workflow';
+import { defineSignal, setHandler, proxyActivities, sleep } from '@temporalio/workflow';
 import dayjs from 'dayjs';
 import { RefreshRetweetActivity } from '@gitroom/orchestrator/activities/refresh.retweet.activity';
 
-const { runRefreshRetweet } = proxyActivities<RefreshRetweetActivity>({
-  startToCloseTimeout: '20 minutes',
-  taskQueue: 'main',
-  retry: {
-    maximumAttempts: 3,
-    backoffCoefficient: 1,
-    initialInterval: '1 minute',
-  },
-});
+const { runRefreshRetweet, getRefreshSlots } =
+  proxyActivities<RefreshRetweetActivity>({
+    startToCloseTimeout: '45 minutes',
+    taskQueue: 'main',
+    retry: {
+      maximumAttempts: 3,
+      backoffCoefficient: 1,
+      initialInterval: '1 minute',
+    },
+  });
 
-const SLOTS = [9, 16, 19, 21, 23];
-
-const nextDelay = () => {
+const parseNextDelay = (slots: string[]) => {
   const now = dayjs();
-  const todayTarget = SLOTS.map((hour) =>
-    now.hour(hour).minute(0).second(0).millisecond(0)
-  ).find((slot) => slot.isAfter(now));
+  const slotDates = slots
+    .map((slot) => {
+      const [h, m] = slot.split(':').map((n) => +n);
+      if (Number.isNaN(h) || Number.isNaN(m)) return null;
+      return now.hour(h).minute(m).second(0).millisecond(0);
+    })
+    .filter(Boolean) as dayjs.Dayjs[];
+
+  const todayTarget = slotDates.find((slot) => slot.isAfter(now));
 
   const target =
     todayTarget ||
-    now
-      .add(1, 'day')
-      .hour(SLOTS[0])
-      .minute(0)
-      .second(0)
-      .millisecond(0);
+    (slotDates.length
+      ? slotDates[0].add(1, 'day')
+      : now.add(15, 'minute')); // fallback if no slots
 
   return Math.max(target.diff(now, 'millisecond'), 0);
 };
 
 export async function refreshRetweetWorkflow() {
+  let poked = false;
+  const poke = defineSignal('poke');
+  setHandler(poke, () => {
+    poked = true;
+  });
+
   while (true) {
-    await sleep(nextDelay());
+    const slots = await getRefreshSlots();
+    const delay = parseNextDelay(slots);
+    let remaining = delay;
+    const step = 60_000; // check every minute for a poke
+    while (remaining > 0 && !poked) {
+      const slice = Math.min(step, remaining);
+      await sleep(slice);
+      remaining -= slice;
+    }
+    poked = false;
     try {
       await runRefreshRetweet();
     } catch (err) {

@@ -581,7 +581,19 @@ export class IntegrationsController {
     @GetOrgFromRequest() org: Organization,
     @Body() body: PlugDto
   ) {
-    return this._integrationService.createOrUpdatePlug(org.id, id, body);
+    const res = await this._integrationService.createOrUpdatePlug(
+      org.id,
+      id,
+      body
+    );
+
+    try {
+      await this._integrationService.pokeRefreshRetweetWorkflow(org.id);
+    } catch (err) {
+      /** ignore poke errors **/
+    }
+
+    return res;
   }
 
   @Put('/plugs/:id/activate')

@@ -233,6 +233,14 @@ export class XProvider extends SocialAbstract implements SocialProvider {
         description: 'Tweet IDs to refresh (one per line)',
         validation: /^(?:\s*\d+\s*(?:\r?\n|$))+$/m,
       },
+      {
+        name: 'schedule',
+        type: 'richtext',
+        placeholder: '09:00\n16:00\n19:00\n21:00\n23:00',
+        description:
+          'Times (HH:mm) to run, one per line. Leave empty to use defaults.',
+        validation: /^(\s*[0-2]?\d:[0-5]\d\s*(?:\r?\n|$))+$/m,
+      },
     ],
   })
   async refreshRetweet(integration: Integration, tweetIds: string[]) {
@@ -244,22 +252,28 @@ export class XProvider extends SocialAbstract implements SocialProvider {
     for (let i = 0; i < uniqueIds.length; i++) {
       const tweetId = uniqueIds[i];
       try {
+        console.log('unretweet', tweetId);
         await this.runInConcurrent(() =>
           client.v2.unretweet(integration.internalId, tweetId)
         );
+        console.log('unretweeted', tweetId);
       } catch (err) {
         // ignore failures when unretweeting (e.g., if not previously retweeted)
+        console.log('error', err);
       }
 
       // Small gap between undo and redo
       await timer(5000);
 
       try {
+        console.log('retweet', tweetId);
         await this.runInConcurrent(() =>
           client.v2.retweet(integration.internalId, tweetId)
         );
+        console.log('retweeted', tweetId);
       } catch (err) {
         // ignore individual failures to keep the batch going
+        console.log('error', err);
       }
 
       // Free plan: 1 write / 15 min per endpoint. Wait before moving to the next tweet.
@@ -271,6 +285,7 @@ export class XProvider extends SocialAbstract implements SocialProvider {
       await timer(5000);
     }
 
+    console.log('refreshRetweet completed');
     return true;
   }
 
